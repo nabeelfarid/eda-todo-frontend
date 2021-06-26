@@ -1,0 +1,45 @@
+﻿schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type GenerateActionOutput @aws_api_key @aws_cognito_user_pools {
+  action: ACTIONS!
+  done: Boolean!
+  id: ID!
+  title: String!
+}
+
+type Mutation {
+  createTodo(title: String!): TodoEvent!
+  deleteTodo(id: ID!): TodoEvent!
+  generateAction(action: ACTIONS, done: Boolean, id: ID, title: String): GenerateActionOutput @aws_api_key @aws_cognito_user_pools
+  test(value: String!): String @aws_api_key @aws_cognito_user_pools
+  updateTodo(done: Boolean!, id: ID!): TodoEvent!
+}
+
+type Query {
+  getTodos: [Todo!]!
+}
+
+type Subscription {
+  onGenerateAction: GenerateActionOutput @aws_subscribe(mutations : ["generateAction"])
+  onTest: String! @aws_subscribe(mutations : ["test"])
+}
+
+type Todo {
+  done: Boolean!
+  id: ID!
+  title: String!
+}
+
+type TodoEvent {
+  id: ID!
+}
+
+enum ACTIONS {
+  CREATE_TODO
+  DELETE_TODO
+  UPDATE_TODO
+}
