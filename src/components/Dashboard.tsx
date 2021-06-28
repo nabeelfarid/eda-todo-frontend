@@ -1,6 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
-import { RouteComponentProps } from "@reach/router";
-import { AmplifyIdentityContext } from "../utils/AmplifyIdentityContextProvider";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -21,7 +19,6 @@ import { Formik, Form, FormikHelpers } from "formik";
 import * as Yup from "yup";
 import FormikMuiTextField from "./FormikMuiTextField";
 import { Button } from "gatsby-theme-material-ui";
-// import { gql, useMutation, useQuery } from "@apollo/client";
 import Error from "./Error";
 import Loader from "./Loader";
 
@@ -39,13 +36,12 @@ import {
 import { Delete } from "@material-ui/icons";
 import { GraphQLResult } from "@aws-amplify/api-graphql";
 import { Observable } from "../../node_modules/zen-observable-ts";
+import { AWSAppSyncRealTimeProvider } from "@aws-amplify/pubsub/src/Providers";
 
-const Dashboard = (props: RouteComponentProps) => {
+const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState<Todo[]>(null);
-
-  // const [updateTodoDoneLoading, setUpdateTodoDoneLoading] = useState(false);
   const [selectedTodos, setSelectedTodos] = useState<Todo[]>([]);
 
   const fetchTodos = async () => {
@@ -70,6 +66,45 @@ const Dashboard = (props: RouteComponentProps) => {
     fetchTodos();
   }, []);
 
+  const handleCreateTodoAction = (
+    value: GraphQLResult<OnGenerateActionSubscription>
+  ) => {
+    setData((prev) => [
+      {
+        id: value.data.onGenerateAction.id,
+        title: value.data.onGenerateAction.title,
+        done: value.data.onGenerateAction.done,
+        __typename: "Todo",
+      },
+      ...prev,
+    ]);
+  };
+  const handleUpdateTodoAction = (
+    value: GraphQLResult<OnGenerateActionSubscription>
+  ) => {
+    setData((old) => {
+      const i = old.findIndex((td) => td.id === value.data.onGenerateAction.id);
+      old[i].done = !old[i].done;
+      return old;
+    });
+
+    setSelectedTodos((old) =>
+      old.filter((td) => td.id !== value.data.onGenerateAction.id)
+    );
+  };
+
+  const handleDeleteTodoAction = (
+    value: GraphQLResult<OnGenerateActionSubscription>
+  ) => {
+    setData((old) =>
+      old.filter((td) => td.id !== value.data.onGenerateAction.id)
+    );
+
+    setSelectedTodos((old) =>
+      old.filter((td) => td.id !== value.data.onGenerateAction.id)
+    );
+  };
+
   useEffect(() => {
     const subscriptionObservable = API.graphql(
       graphqlOperation(subscriptions.onGenerateAction)
@@ -77,49 +112,20 @@ const Dashboard = (props: RouteComponentProps) => {
 
     let subscription = subscriptionObservable.subscribe({
       next: (payload: {
+        provider: AWSAppSyncRealTimeProvider;
         value: GraphQLResult<OnGenerateActionSubscription>;
       }) => {
         console.log(payload);
-        const {
-          data: { onGenerateAction },
-        } = payload.value;
 
-        switch (onGenerateAction.action) {
+        switch (payload.value.data.onGenerateAction.action) {
           case ACTIONS.CREATE_TODO:
-            //add the newly created todo to the existing todos
-            setData((prev) => [
-              {
-                id: onGenerateAction.id,
-                title: onGenerateAction.title,
-                done: onGenerateAction.done,
-                __typename: "Todo",
-              },
-              ...prev,
-            ]);
+            handleCreateTodoAction(payload.value);
             break;
           case ACTIONS.UPDATE_TODO:
-            {
-              setData((old) => {
-                const i = old.findIndex((td) => td.id === onGenerateAction.id);
-                old[i].done = !old[i].done;
-                return old;
-              });
-
-              setSelectedTodos((old) =>
-                old.filter((td) => td.id !== onGenerateAction.id)
-              );
-            }
+            handleUpdateTodoAction(payload.value);
             break;
           case ACTIONS.DELETE_TODO:
-            {
-              const dataAfterDelete = setData((old) =>
-                old.filter((td) => td.id !== onGenerateAction.id)
-              );
-
-              setSelectedTodos((old) =>
-                old.filter((td) => td.id !== onGenerateAction.id)
-              );
-            }
+            handleDeleteTodoAction(payload.value);
             break;
           default:
             break;
@@ -144,7 +150,6 @@ const Dashboard = (props: RouteComponentProps) => {
       done: boolean;
     }>
   ) => {
-    // setLoading(true);
     try {
       const { data } = (await API.graphql(
         graphqlOperation(mutations.createTodo, { title: values.title })
@@ -156,32 +161,24 @@ const Dashboard = (props: RouteComponentProps) => {
       console.log("Create/Update Todo Event Error", error);
     } finally {
       formikHelpers.setSubmitting(false);
-      // setLoading(false);
     }
   };
 
-  const handleToggle = async (todo: Todo) => {
+  const handleUpdateTodoEvent = async (todo: Todo) => {
     await API.graphql(
       graphqlOperation(mutations.updateTodo, {
         done: !todo.done,
         id: todo.id,
       })
     );
-    // const i = data.findIndex((td) => td.id === todo.id);
-    // data[i].done = !data[i].done;
-    // setData(data);
-    // setUpdateTodoDoneLoading(false);
   };
 
-  const handleDelete = async (todo: Todo) => {
+  const handleDeleteTodoEvent = async (todo: Todo) => {
     await API.graphql(
       graphqlOperation(mutations.deleteTodo, {
         id: todo.id,
       })
     );
-    // const dataAfterDelete = data.filter((td) => td.id !== todo.id);
-    // setData(dataAfterDelete);
-    // setUpdateTodoDoneLoading(false);
   };
 
   return (
@@ -251,9 +248,8 @@ const Dashboard = (props: RouteComponentProps) => {
                         button
                         dense
                         onClick={() => {
-                          // setUpdateTodoDoneLoading(true);
                           setSelectedTodos((p) => [...p, todo]);
-                          handleToggle(todo);
+                          handleUpdateTodoEvent(todo);
                         }}
                         disabled={selectedTodos.some((t) => t.id === todo.id)}
                       >
@@ -274,9 +270,8 @@ const Dashboard = (props: RouteComponentProps) => {
                           <IconButton
                             aria-label="delete"
                             onClick={() => {
-                              // setUpdateTodoDoneLoading(true);
                               setSelectedTodos((p) => [...p, todo]);
-                              handleDelete(todo);
+                              handleDeleteTodoEvent(todo);
                             }}
                           >
                             <Delete />

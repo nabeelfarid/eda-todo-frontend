@@ -1,3 +1,10 @@
+- Demo Url: https://d3k200wpmhjehd.cloudfront.net
+- Backend Repo: https://github.com/nabeelfarid/eda-todo-backend
+- Frontend Repo: https://github.com/nabeelfarid/eda-todo-frontend
+- Frontend Pipeline Repo: https://github.com/nabeelfarid/eda-todo-frontend-pipeline
+
+##
+
 <p align="center">
   <a href="https://www.gatsbyjs.com/?utm_source=starter&utm_medium=readme&utm_campaign=minimal-starter">
     <img alt="Gatsby" src="https://www.gatsbyjs.com/Gatsby-Monogram.svg" width="60" />
